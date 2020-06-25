@@ -4,6 +4,7 @@ const fs = require('fs');
 const Hapi = require('@hapi/hapi');
 const mongoose = require('mongoose');
 const Boom = require('@hapi/boom');
+const Path = require('path');
 
 const userInfo = require('./personal-info/user-info');
 
@@ -21,9 +22,21 @@ const validate = async (decoded, request) => {
 const init = async () => {
 
     const server = Hapi.server({
-        port: 3000,
-        host: 'localhost'
+        port: 5000,
+        host: 'localhost',
+        routes: {
+            cors: true
+        }
     });
+
+    await server.register({
+        plugin: require('./plugins/logger')
+    });
+
+
+    await server.register({
+        plugin: require('./routes/static-routes')
+    })
 
     server.realm.modifiers.route.prefix = '/api';
 
@@ -42,42 +55,6 @@ const init = async () => {
         plugin: require('./routes/place-routes')
     });
 
-    await server.route(
-        {
-            method: 'POST',
-            path: '/upload',
-            options: {
-                payload: {
-                    output: 'stream',
-                    parse: true,
-                    multipart: true
-                },
-                handler: async (req, handler) => {
-                    const data = req.payload;
-                    const file = data.file;
-                    console.log(data);
-                    console.log('file was accepted');
-
-                    let fileName;
-
-
-                    try {
-                            fileName = 'sample name';
-
-                            const out = fs.createWriteStream(`./uploads/images/${fileName}`);
-                            await file.pipe(out);
-
-                    } catch (error) {
-                        console.log(error);
-                        console.log('picture upload failed');
-                        throw Boom.badImplementation('something went wrong, please try once again');
-                    }
-
-                    return 'file was uploaded';
-                }
-            }
-        }
-    );
 
     await server.start();
     console.log('Server is running on %s', server.info.uri);

@@ -5,6 +5,7 @@ const bcrypt = require('bcrypt');
 
 const User = require('../models/user');
 const createToken = require('../util/token');
+const imageUpload = require('../util/imageUpload');
 
 
 const getUsers = async (req, handler) => {
@@ -12,7 +13,7 @@ const getUsers = async (req, handler) => {
 
     try {
         users = await User.find({}, '-password');
-    } catch (error) {
+    } catch (err) {
         throw Boom.badImplementation('Fetching users failed, please try again later');
     }
 
@@ -44,10 +45,18 @@ const signup = async (req, res) => {
         throw Boom.badImplementation('Could not create user, please try again later');
     }
 
+    let fileName;
+
+    try {
+        fileName = imageUpload(file);
+    } catch (err) {
+        Boom.badImplementation('Could not create user, please try again later');
+    }
+
     const createdUser = new User({
         name,
         email,
-        image: 'sample url',
+        image: fileName,
         password: hashedPassword,
         places: []
     });
@@ -55,7 +64,7 @@ const signup = async (req, res) => {
 
     try {
         await createdUser.save();
-    } catch (error) {
+    } catch (err) {
         Boom.badImplementation('Something went wrong, please try again');
     }
 

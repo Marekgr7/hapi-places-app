@@ -19,10 +19,14 @@ exports.plugin = {
                 path: '/users/signup',
                 options: {
                     description: 'Sign up an user',
-                    handler: userCtrl.signup,
+                    payload: {
+                        multipart: true,
+                        parse: true
+                    },
                     validate: {
                         payload: createUserSchema
-                    }
+                    },
+                    handler: userCtrl.signup
                 }
             },
             {

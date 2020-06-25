@@ -1,4 +1,5 @@
 const placeCtrl = require('../controllers/place-controller');
+const createPlaceSchema = require('../schemas/createPlace');
 
 exports.plugin = {
     async register(server, options) {
@@ -25,6 +26,13 @@ exports.plugin = {
                 options: {
                     description: 'create new place',
                     handler: placeCtrl.createPlace,
+                    validate: {
+                        payload: createPlaceSchema
+                    },
+                    payload: {
+                        multipart: true,
+                        parse: true
+                    },
                     auth: {
                         strategy: 'jwt'
                     }

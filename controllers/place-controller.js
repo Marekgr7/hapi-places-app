@@ -5,6 +5,7 @@ const mongoose = require('mongoose');
 const getCoordsForAddress = require('../util/location');
 const Place = require('../models/place');
 const User = require('../models/user');
+const imageUpload = require('../util/imageUpload');
 
 const getPlaceById = async (req, handler) => {
     const placeId = req.params.placeId;
@@ -24,18 +25,42 @@ const getPlaceById = async (req, handler) => {
     return { place };
 };
 
-const getPlacesByUserId = (req, handler) => {
+const getPlacesByUserId = async (req, handler) => {
   const userId = req.params.userId;
+
+  console.log(userId);
+
+  let userWithPlaces;
+  try {
+      userWithPlaces = await User.findById(userId).populate('places');
+  } catch (err) {
+      throw Boom.badImplementation('Fetching places failed, please try again later');
+  }
+
+  if (!userWithPlaces || userWithPlaces.places.length === 0) {
+      throw Boom.notFound('No places found for this user');
+  }
+
+  return {
+    places: userWithPlaces.places.map(place => place.toObject({ getters: true }))
+  };
 };
 
 const createPlace = async (req, handler) => {
-    const { title, description, address, userId } = req.payload;
+    const { title, description, address, userId, file } = req.payload;
 
     let coordinates;
     try {
         coordinates = await getCoordsForAddress(address);
-    } catch (error) {
-        throw error;
+    } catch (err) {
+        throw Boom.badImplementation('Something went wrong, please try again');
+    }
+
+    let fileName;
+    try {
+        fileName = imageUpload(file);
+    } catch (err) {
+        Boom.badImplementation('Something went wrong. Please try again');
     }
 
     const createdPlace = new Place({
@@ -43,15 +68,15 @@ const createPlace = async (req, handler) => {
         description,
         address,
         location: coordinates,
-        image: 'random image',
+        image: fileName,
         creator: userId
     });
 
     let user;
     try {
         user = await User.findById(userId);
-    } catch (error) {
-        throw new HttpError('Could not find an user')
+    } catch (err) {
+        Boom.notFound('Cannot find an user. Please try again later');
     }
 
     console.log(user);
@@ -64,7 +89,7 @@ const createPlace = async (req, handler) => {
         await user.save({ session: sess });
         await sess.commitTransaction();
     } catch (err) {
-        throw new HttpError('Creating place failed, please try again later');
+        throw Boom.badImplementation('Creating place failed, please try again later');
     }
 
     return { place: createdPlace };
@@ -72,8 +97,9 @@ const createPlace = async (req, handler) => {
 
 const updatePlace = async (req, handler) => {
     const placeId = req.params.placeId;
-    const { title, description } = req.payload;
+    const { title, description, userId } = req.payload;
 
+    console.log(title, description, userId);
     let place;
 
     try {
@@ -82,6 +108,7 @@ const updatePlace = async (req, handler) => {
         throw Boom.badImplementation('Something went wrong, could not update a place');
     }
 
+    console.log(place.creator.toString() + ' and ' + userId);
     if (place.creator.toString() !== userId) {
         throw Boom.unauthorized('You are not authorized to edit this place');
     }
@@ -91,7 +118,7 @@ const updatePlace = async (req, handler) => {
 
     try {
         await place.save();
-    } catch (error) {
+    } catch (err) {
         throw Boom.badImplementation('Something went wrong, could not update a place');
     }
 
@@ -102,22 +129,17 @@ const updatePlace = async (req, handler) => {
 
 const deletePlace = async (req, handler) => {
     const placeId = req.params.placeId;
-    const userId = req.headers.authorization;
 
     let place;
     try {
         place = await Place.findById(placeId).populate('creator');
-    } catch (error) {
+    } catch (err) {
        throw Boom.badImplementation('Something went wrong, could not delete a place');
     }
 
     if (!place) {
         throw Boom.notFound('Could not find a place for this id');
     }
-
-    if (place.creator.id !== userId ) {
-        throw Boom.unauthorized('You are not allowed to delete this place');
-    }  //TODO ID DECODED FROM TOKEN
 
     const imagePath = place.image;
 
