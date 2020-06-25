@@ -15,10 +15,12 @@ The main purpose of the application is to store favourite places of the users.
 
 ## Setup
 
-To run this project, download repo and install it locally using npm install.
+To run this project, download repo and install it locally using npm install. Create collection in mongo db with two documents: users and places.
 
 ### Important
 In root folder of app, folder should be created ,,personal-info" and file created "user-info.js" with urls to mongoDb, google maps API, and secret should be set for JWT authentication.
+
+Also folder uploads/images should be created in root directory.
 
 ### Sample file
 
